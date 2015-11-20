@@ -7,6 +7,7 @@
 #include<openssl/conf.h>
 #include<openssl/evp.h>
 #include<openssl/err.h>
+#include<openssl/hmac.h>
 
 #define AESKEYLENGTH 32
 #define IVLENGTH 16
@@ -143,6 +144,8 @@ void create_open_entry(aes_pair* pair){
     char hashItems[100];
     sprintf(hashItems,"%d",OPEN_ENTRY);
     strcat(hashItems, pair->key);
+
+    // This is Y_j
     char enc_key [32];
     SHA256(hashItems,strlen(hashItems), enc_key);
 
@@ -161,8 +164,30 @@ void create_open_entry(aes_pair* pair){
     strcat(otherHashItems,ciphertext);
     strcat(otherHashItems,ent);
 
+    // This is K_j
     char hash[32];
     SHA256(otherHashItems, strlen(otherHashItems),hash);
+
+    unsigned char* digest;
+    digest = HMAC(EVP_sha256(),pair->key,strlen(pair->key),(unsigned char*)enc_key,strlen(enc_key),NULL,NULL);
+
+    int ent_len = strlen(ent); // 1
+    int enc_data_len = ciphertext_len; //16
+    int hash_len = strlen(hash); // 33
+    int digest_len = strlen(digest); // 32
+
+    char log_entry[ent_len+enc_data_len+hash_len+digest_len];
+    log_entry[0] -'\0';
+    strcat(log_entry,ent);
+    strcat(log_entry,ciphertext);
+    strcat(log_entry,hash);
+    strcat(log_entry,digest);
+    printf("log=%d\n",strlen(log_entry));
+
+    printf("ent=%d enc_data=%d hash=%d digest_len=%d\n", ent_len,enc_data_len, hash_len,digest_len);
+
+
+
 
 
 
