@@ -335,17 +335,24 @@ void handle_add_message(char* cmd){
     printf("length=%d\n",ciphertext_len);
     BIO_dump_fp(stdout, ciphertext,ciphertext_len);
     printf("\n");
+	
+
     unsigned char newHashChainValue[32];
 
     unsigned char hashString[400];
 
-    char ent[1];
-    sprintf(ent, "%d",NORMAL_ENTRY);
 
+    char ent[] = "1";
+    //sprintf(ent, "%d",NORMAL_ENTRY);
+	
+	printf("sdfasdflength=%d\n",ciphertext_len);
+    BIO_dump_fp(stdout, ciphertext,ciphertext_len);
+    printf("\n");
 
     memcpy(hashString,curHashChainValue,32);
     memcpy(&hashString[32],ciphertext,128);
     memcpy(&hashString[32+128],ent,1);
+
 
     SHA256(hashString,32+129,newHashChainValue);
     memset(curHashChainValue,0,32);
@@ -353,10 +360,6 @@ void handle_add_message(char* cmd){
 
     unsigned char* digest;
     digest = HMAC(EVP_sha256(),curSecret,32,(unsigned char*)curHashChainValue,32,NULL,NULL);
-
-
-
-
 
 
     char log_entry[82];
