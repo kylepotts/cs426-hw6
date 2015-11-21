@@ -205,10 +205,22 @@ void create_open_entry(aes_pair* pair){
     sprintf(ent, "%d", OPEN_ENTRY);
 
     //printf("y_j\n");
+
     char* m = "INIT";
+    char inital_hash[32];
+    SHA256(m,strlen(m),inital_hash);
+
+
+    char hashItems[32+16+1];
+    memset(hashItems,0,49);
+    memcpy(hashItems,inital_hash,32);
+    memcpy(&hashItems[32],ciphertext,16);
+    memcpy(&hashItems[32+16],"0",1);
+
     char y[32];
-    SHA256(m,strlen(m),y);
-    //BIO_dump_fp(stdout, y,strlen(y));
+    SHA256(hashItems,32,y);
+    printf("y!!!!!\n");
+    BIO_dump_fp(stdout, y,32);
     memset(curHashChainValue,0,32);
     memcpy(curHashChainValue,y,32);
 
@@ -227,7 +239,7 @@ void create_open_entry(aes_pair* pair){
     log_entry[0] = '\0';
     memcpy(log_entry,ent,1);
     memcpy(&log_entry[1],ciphertext, ciphertext_len);
-    memcpy(&log_entry[1+ciphertext_len],y,strlen(y));
+    memcpy(&log_entry[1+ciphertext_len],y,32);
     memcpy(&log_entry[1+ciphertext_len+strlen(y)],digest,32);
     //printf("Entry\n");
     //BIO_dump_fp(stdout,log_entry,82);
@@ -273,15 +285,14 @@ void handle_verify(char* cmd){
      printf("index=%d\n", index);
 
     rewind(curLog);
+    /*
      unsigned char log[82];
 
     char* m = "INIT";
     char inital_hash[32];
     SHA256(m,strlen(m),inital_hash);
 
-    if(index != 0){
-        fseek(curLog,82*index,SEEK_SET);
-    }
+
     fread(log,sizeof(unsigned char),82,curLog);
     BIO_dump_fp(stdout, log,82);
 
@@ -307,13 +318,26 @@ void handle_verify(char* cmd){
     BIO_dump_fp(stdout,z,32);
 
 
+    char hashItems[49];
+    char h[32];
+    memset(hashItems,0,49);
+    memcpy(hashItems,inital_hash,32);
+    memcpy(&hashItems[32],ciphertext,16);
+    memcpy(&hashItems[32+16],&ent,1);
+    SHA256(hashItems,32,h);
 
-    if(memcmp(inital_hash,y,32) == 0){
+    printf("h!!!!\n");
+    BIO_dump_fp(stdout,h,32);
+
+
+
+    if(memcmp(h,y,32) == 0){
          printf("same hash!\n");
-         get_log_data(index,ent,ciphertext);
+         //get_log_data(index,ent,ciphertext);
     } else {
         printf("Failed Verification\n");
     }
+    */
 
 }
 
@@ -332,10 +356,7 @@ void handle_add_message(char* cmd){
     unsigned char ciphertext[128];
 
     int ciphertext_len = encrypt(str, strlen((char*)str), curSecret,curIV,ciphertext);
-    printf("length=%d\n",ciphertext_len);
-    BIO_dump_fp(stdout, ciphertext,ciphertext_len);
-    printf("\n");
-	
+
 
     unsigned char newHashChainValue[32];
 
@@ -344,10 +365,7 @@ void handle_add_message(char* cmd){
 
     char ent[] = "1";
     //sprintf(ent, "%d",NORMAL_ENTRY);
-	
-	printf("sdfasdflength=%d\n",ciphertext_len);
-    BIO_dump_fp(stdout, ciphertext,ciphertext_len);
-    printf("\n");
+
 
     memcpy(hashString,curHashChainValue,32);
     memcpy(&hashString[32],ciphertext,128);
