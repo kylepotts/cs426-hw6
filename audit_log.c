@@ -279,9 +279,11 @@ void handle_verify(char* cmd){
     char inital_hash[32];
     SHA256(m,strlen(m),inital_hash);
 
-
-     fread(log,sizeof(unsigned char),82*(index+1),curLog);
-    //BIO_dump_fp(stdout, log,82);
+    if(index != 0){
+        fseek(curLog,82*index,SEEK_SET);
+    }
+    fread(log,sizeof(unsigned char),82,curLog);
+    BIO_dump_fp(stdout, log,82);
 
     unsigned char l[82];
     memcpy(l,log,82);
@@ -294,19 +296,15 @@ void handle_verify(char* cmd){
     memcpy(ciphertext, &log[1], 16);
     memcpy(y,&log[1+16],33);
     memcpy(z,&log[1+16+32+1],32);
-    /*
     printf("ent\n");
     BIO_dump_fp(stdout,&ent,1);
     printf("ciphertext\n");
-    */
     ciphertext[0] = l[1];
-    /*
     BIO_dump_fp(stdout,ciphertext,16);
     printf("y\n");
     BIO_dump_fp(stdout,y,33);
     printf("z\n");
     BIO_dump_fp(stdout,z,32);
-    */
 
 
 
@@ -335,14 +333,14 @@ void handle_add_message(char* cmd){
 
     int ciphertext_len = encrypt(str, strlen((char*)str), curSecret,curIV,ciphertext);
     printf("length=%d\n",ciphertext_len);
-
+    BIO_dump_fp(stdout, ciphertext,ciphertext_len);
+    printf("\n");
     unsigned char newHashChainValue[32];
 
     unsigned char hashString[400];
 
     char ent[1];
     sprintf(ent, "%d",NORMAL_ENTRY);
-
 
 
     memcpy(hashString,curHashChainValue,32);
@@ -367,6 +365,10 @@ void handle_add_message(char* cmd){
     memcpy(&log_entry[1],ciphertext, ciphertext_len);
     memcpy(&log_entry[1+ciphertext_len],curHashChainValue,32);
     memcpy(&log_entry[1+ciphertext_len+32],digest,32);
+
+    printf("length=%d\n",ciphertext_len);
+    BIO_dump_fp(stdout, ciphertext,ciphertext_len);
+    printf("\n");
 
 
     BIO_dump_fp(stdout,log_entry,82);
