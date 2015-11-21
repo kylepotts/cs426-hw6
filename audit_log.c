@@ -129,7 +129,9 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
     strncpy(aes_file_name,curLogName,strlen(curLogName));
     strncat(aes_file_name, "_aes", strlen(aes_file_name)+ 4);
     FILE* aes_file = fopen(aes_file_name, "w+");
-    fprintf(aes_file,"%s\n %s\n", key,iv);
+    fwrite(key,1,AESKEYLENGTH,aes_file);
+    fwrite(iv,1,IVLENGTH,aes_file);
+    fflush(aes_file);
     fclose(aes_file);
 
     aes_pair* pair = (aes_pair*)malloc(sizeof(aes_pair));
@@ -140,12 +142,34 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
 
 }
 
+void get_log_data(int index, char  ent, char*ciphertext){
+    char aes_file_name[200];
+    strncpy(aes_file_name,curLogName,strlen(curLogName));
+    strncat(aes_file_name, "_aes", strlen(aes_file_name)+ 4);
+    FILE* aes_file = fopen(aes_file_name, "w+");
+    char key[AESKEYLENGTH];
+    char iv[IVLENGTH];
+    fread(key,1,AESKEYLENGTH,aes_file);
+    fread(iv,1,IVLENGTH,aes_file);
+    fclose(aes_file);
+
+    for(int i=1; i<index; i++){
+         SHA256(key,32,key);
+    }
+    char decyrpted_text [200];
+    int decyrpted_text_len = decrypt(ciphertext, strlen(ciphertext), key,iv,decyrpted_text);
+    decyrpted_text[decyrpted_text_len] - '\0';
+    printf("text=%s\n", decyrpted_text);
+}
+
+
+
 void create_open_entry(aes_pair* pair){
     char hashItems[100];
     sprintf(hashItems,"%d",OPEN_ENTRY);
     strcat(hashItems, pair->key);
 
-    // This is Y_j
+    // This is K_j
     char enc_key [32];
     SHA256(hashItems,strlen(hashItems), enc_key);
 
@@ -156,42 +180,39 @@ void create_open_entry(aes_pair* pair){
 
     int ciphertext_len;
     ciphertext_len = encrypt(message_text, strlen((char*)message_text), enc_key,pair->iv,ciphertext);
-
-    char otherHashItems [strlen("0000")+ciphertext_len+1];
+    printf("ciphertext\n");
+    BIO_dump_fp(stdout, ciphertext, ciphertext_len);
     char ent [10];
     sprintf(ent, "%d", OPEN_ENTRY);
-    strcat(otherHashItems,"0000");
-    strcat(otherHashItems,ciphertext);
-    strcat(otherHashItems,ent);
 
-    // This is K_j
-    char hash[32];
-    SHA256(otherHashItems, strlen(otherHashItems),hash);
+    printf("y_j\n");
+    char* m = "INIT";
+    char y[32];
+    SHA256(m,strlen(m),y);
+    BIO_dump_fp(stdout, y,strlen(y));
 
     unsigned char* digest;
-    digest = HMAC(EVP_sha256(),pair->key,strlen(pair->key),(unsigned char*)enc_key,strlen(enc_key),NULL,NULL);
+    digest = HMAC(EVP_sha256(),pair->key,strlen(pair->key),(unsigned char*)y,strlen(y),NULL,NULL);
+    printf("digest\n");
+    BIO_dump_fp(stdout, digest,32);
 
     int ent_len = strlen(ent); // 1
     int enc_data_len = ciphertext_len; //16
-    int hash_len = strlen(hash); // 33
+    int hash_len = strlen(y); // 33
     int digest_len = strlen(digest); // 32
 
     char log_entry[ent_len+enc_data_len+hash_len+digest_len];
-    log_entry[0] -'\0';
-    strcat(log_entry,ent);
-    strcat(log_entry,ciphertext);
-    strcat(log_entry,hash);
-    strcat(log_entry,digest);
-    printf("log=%d\n",strlen(log_entry));
+    log_entry[0] = '\0';
+    memcpy(log_entry,ent,1);
+    memcpy(&log_entry[1],ciphertext, ciphertext_len);
+    memcpy(&log_entry[1+ciphertext_len],y,strlen(y));
+    memcpy(&log_entry[1+ciphertext_len+strlen(y)],digest,32);
+    printf("Entry\n");
+    BIO_dump_fp(stdout,log_entry,82);
 
     printf("ent=%d enc_data=%d hash=%d digest_len=%d\n", ent_len,enc_data_len, hash_len,digest_len);
-
-
-
-
-
-
-
+    fwrite(log_entry,1,82,curLog);
+    fflush(curLog);
 
 }
 
@@ -203,7 +224,7 @@ void handle_create_log(char* cmd){
         printf("Another log File is currently opened\n");
         return;
     }else {
-        curLog = fopen(curLogName,"a");
+        curLog = fopen(curLogName,"w+");
         aes_pair* pair = generateAESKeyandIVForLog();
         create_open_entry(pair);
         printf("Log with name %s sucessfully opened\n", curLogName);
@@ -219,6 +240,55 @@ void handle_close_log(){
          printf("Log sucessfully closed\n");
          curLog = NULL;
     }
+}
+
+void handle_verify(char* cmd){
+     char cmd_name[strlen(cmd)];
+     char indexStr[strlen(cmd)];
+     sscanf(cmd, "%s %s", cmd_name, indexStr);
+     int index = atoi(indexStr);
+     printf("index=%d\n", index);
+
+    rewind(curLog);
+     unsigned char*log = (unsigned char*)malloc(sizeof(char)*82);
+
+    char* m = "INIT";
+    char inital_hash[32];
+    SHA256(m,strlen(m),inital_hash);
+
+
+     fread(log,1,82*(index+1),curLog);
+    BIO_dump_fp(stdout, log,82);
+
+    char ent;
+    char ciphertext[16];
+    char y[32];
+    char z[32];
+    memcpy(&ent,&log[0],1);
+    memcpy(ciphertext, &log[1], 16);
+    memcpy(y,&log[1+16],33);
+    memcpy(z,&log[1+16+32+1],32);
+
+    printf("ent\n");
+    BIO_dump_fp(stdout,&ent,1);
+    printf("ciphertext\n");
+    BIO_dump_fp(stdout,ciphertext,16);
+    printf("y\n");
+    BIO_dump_fp(stdout,y,33);
+    printf("z\n");
+    BIO_dump_fp(stdout,z,32);
+
+    if(memcmp(inital_hash,y,32) == 0){
+         printf("same hash!\n");
+         get_log_data(index,ent,ciphertext);
+    } else {
+        printf("Failed Verification\n");
+    }
+
+
+
+
+
 }
 
 int main(){
@@ -239,6 +309,9 @@ int main(){
         }
         else if(strcmp(cmd,"closelog") == 0){
              handle_close_log();
+        }
+        else if(strncmp(cmd,"verify",6) == 0){
+             handle_verify(cmd);
         }
         else {
              printf("Invalid command\n");
