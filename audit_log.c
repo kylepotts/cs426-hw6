@@ -19,6 +19,9 @@ char curSecret[32];
 char curIV[32];
 char curHashChainValue[32];
 
+FILE* out_file;
+int is_in_verify_all = -1;
+
 struct aes_pair {
     unsigned char* key;
     unsigned char* iv;
@@ -178,7 +181,13 @@ void get_log_data(int index, char  ent, unsigned char*ciphertext, int ciphertext
     char decyrpted_text [200];
     int decyrpted_text_len = decrypt(ciphertext, ciphertext_len, key,iv,decyrpted_text);
     decyrpted_text[decyrpted_text_len] = '\0';
-    printf("text=%s\n", decyrpted_text);
+    if(is_in_verify_all != 1){
+    printf("%s\n", decyrpted_text);
+    }
+    else if(is_in_verify_all == 1 && out_file != NULL){
+        fwrite(decyrpted_text,sizeof(char),decyrpted_text_len,out_file);
+        fwrite("\n",sizeof(char),1,out_file);
+    }
 }
 
 void create_close_entry(){
@@ -276,7 +285,6 @@ void create_open_entry(aes_pair* pair){
     int hash_len = 32; // 33
     int digest_len = 32; // 32
     int total_len = ent_len+enc_data_len+hash_len+digest_len;
-    printf("total_len=%d\n", total_len);
 
     char log_entry[total_len];
 
@@ -330,7 +338,6 @@ void handle_verify(char* cmd){
      char indexStr[strlen(cmd)];
      sscanf(cmd, "%s %s", cmd_name, indexStr);
      int index = atoi(indexStr);
-     printf("index=%d\n", index);
 
     rewind(curLog);
     unsigned char log[82];
@@ -348,9 +355,7 @@ void handle_verify(char* cmd){
     for(int i=0; i<=index; i++){
         int log_length;
         fread(&log_length, sizeof(int),1,curLog);
-        printf("Log length=%d\n",log_length);
         fread(&ciphertext_len, sizeof(int),1,curLog);
-        printf("ciphertext_len=%d\n",ciphertext_len);
 
         ciphertext = (char*)malloc(sizeof(char)*ciphertext_len);
         fread(ciphertext,sizeof(char),ciphertext_len,curLog);
@@ -366,7 +371,6 @@ void handle_verify(char* cmd){
         memcpy(&hashItems[32+ciphertext_len],&ent,1);
         SHA256(hashItems,32,h);
         memcpy(y,h,32);
-
 
 
         /*
@@ -396,12 +400,7 @@ void handle_verify(char* cmd){
         */
 
     }
-    printf("current_log_y\n");
-    BIO_dump_fp(stdout,current_log_y,32);
-    printf("y!\n");
-    BIO_dump_fp(stdout,y,32);
     if(memcmp(current_log_y,y,32) == 0){
-        printf("same hash!\n");
         get_log_data(index,ent, ciphertext, ciphertext_len);
 
     }
@@ -412,7 +411,6 @@ void handle_add_message(char* cmd){
     char cmd_name[100];
     char str[100];
     sscanf(cmd,"%s %[^\t\n]", cmd_name, str);
-    printf("str=%s\n",str);
 
     char new_secret[32];
     SHA256(curSecret,32,new_secret);
@@ -422,7 +420,6 @@ void handle_add_message(char* cmd){
     unsigned char ciphertext[128];
 
     int ciphertext_len = encrypt(str, strlen((char*)str), curSecret,curIV,ciphertext);
-    printf("len=%d\n",ciphertext_len);
 
 
     unsigned char newHashChainValue[32];
@@ -485,7 +482,6 @@ void handle_verify_all(char* cmd){
     char log_name[100];
     char out_name[100];
     sscanf(cmd,"%s %s %s", cmd_name,curLogName,out_name);
-    printf("log=%s out=%s\n",log_name,out_name);
 
     curLog = fopen(curLogName,"r");
     if(curLog == NULL){
@@ -495,13 +491,19 @@ void handle_verify_all(char* cmd){
     int fileSize = 0;
     fseek(curLog,0,SEEK_END);
     fileSize = ftell(curLog);
-    printf("fileSize=%d\n",fileSize);
     fseek(curLog,fileSize-sizeof(int),SEEK_SET);
 
     int nEntries;
     fread(&nEntries, sizeof(int),1,curLog);
-    printf("nEntries=%d\n", nEntries);
     rewind(curLog);
+
+    out_file = fopen(out_name,"w+");
+    if(out_file == NULL){
+        printf("Error opening out file\n");
+        exit(-1);
+    }
+    is_in_verify_all = 1;
+
     for(int i=0; i<nEntries; i++){
         char cmd[100];
         sprintf(cmd, "verify %d",i);
