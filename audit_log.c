@@ -410,7 +410,7 @@ void handle_add_message(char* cmd){
     unsigned char* digest;
     digest = HMAC(EVP_sha256(),curSecret,32,(unsigned char*)curHashChainValue,32,NULL,NULL);
 
-
+    /*
     char log_entry[82];
     log_entry[0] = '\0';
     memcpy(log_entry,ent,1);
@@ -424,9 +424,17 @@ void handle_add_message(char* cmd){
 
 
     BIO_dump_fp(stdout,log_entry,82);
+    */
 
+    int total_len = 1+ciphertext_len+32+32;
     fseek(curLog,0,SEEK_END);
-    fwrite(log_entry,sizeof(char),82,curLog);
+    fwrite(&total_len,sizeof(int),1,curLog);
+    fwrite(&ciphertext_len,sizeof(int),1,curLog);
+    fwrite(ciphertext,sizeof(char),ciphertext_len,curLog);
+    fwrite(curHashChainValue,sizeof(char),32,curLog);
+    fwrite(digest,sizeof(char),32,curLog);
+    fwrite(ent,sizeof(char),1,curLog);
+    //fwrite(log_entry,sizeof(char),82,curLog);
     fflush(curLog);
     printf("Added log entry number %d\n",curLogIndex);
     curLogIndex++;
