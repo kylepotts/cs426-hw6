@@ -158,7 +158,7 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
 void get_log_data(int index, char  ent, unsigned char*ciphertext, int ciphertext_len){
     char aes_file_name[200];
     strncpy(aes_file_name,curLogName,strlen(curLogName));
-    strncat(aes_file_name, "_aes", strlen(aes_file_name)+ 4);
+    strncat(aes_file_name, "_aes", strlen(curLogName)+ 4);
     FILE* aes_file = fopen(aes_file_name, "r");
     unsigned char key[AESKEYLENGTH];
     unsigned char iv[IVLENGTH];
@@ -166,13 +166,6 @@ void get_log_data(int index, char  ent, unsigned char*ciphertext, int ciphertext
     fread(iv,sizeof(char),IVLENGTH,aes_file);
     fclose(aes_file);
 
-    //unsigned char deckey[32];
-    //SHA256(key,32,deckey);
-    //printf("dec_key\n");
-   // BIO_dump_fp(stdout,deckey,32);
-
-    //printf("IV\n");
-    //BIO_dump_fp(stdout,iv,IVLENGTH);
 
     unsigned char k[32];
     for(int i=0; i<=index; i++){
