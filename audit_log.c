@@ -158,10 +158,14 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
 void get_log_data(int index, char  ent, unsigned char*ciphertext, int ciphertext_len){
     char aes_file_name[200];
     strncpy(aes_file_name,curLogName,strlen(curLogName));
+    aes_file_name[strlen(curLogName)] = '\0';
     strncat(aes_file_name, "_aes", strlen(curLogName)+ 4);
     FILE* aes_file = fopen(aes_file_name, "r");
     unsigned char key[AESKEYLENGTH];
     unsigned char iv[IVLENGTH];
+    if ( aes_file == NULL ){
+	printf("null\n");
+    }
     fread(key,sizeof(char),AESKEYLENGTH,aes_file);
     fread(iv,sizeof(char),IVLENGTH,aes_file);
     fclose(aes_file);
