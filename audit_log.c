@@ -219,8 +219,8 @@ void create_open_entry(aes_pair* pair){
 
     char y[32];
     SHA256(hashItems,32,y);
-    printf("Y!!!\n");
-    BIO_dump_fp(stdout,y,32);
+    //printf("Y!!!\n");
+    //BIO_dump_fp(stdout,y,32);
 
     memcpy(curHashChainValue,y,32);
 
@@ -241,8 +241,8 @@ void create_open_entry(aes_pair* pair){
     memcpy(&log_entry[1],ciphertext, ciphertext_len);
     memcpy(&log_entry[1+ciphertext_len],y,32);
     memcpy(&log_entry[1+ciphertext_len+strlen(y)],digest,32);
-    printf("Entry\n");
-    BIO_dump_fp(stdout,log_entry,82);
+    //printf("Entry\n");
+    //BIO_dump_fp(stdout,log_entry,82);
 
     //printf("ent=%d enc_data=%d hash=%d digest_len=%d\n", ent_len,enc_data_len, hash_len,digest_len);
     fwrite(log_entry,sizeof(unsigned char),82,curLog);
@@ -290,20 +290,20 @@ void handle_verify(char* cmd){
     char* m = "INIT";
     char y[32];
     char current_log_y[32];
+    unsigned char ciphertext[16];
+    char ent;
     SHA256(m,strlen(m),y);
 
 
     for(int i=0; i<=index; i++){
         memset(log,0,82);
         fread(log,sizeof(char),82,curLog);
-        printf("log %d\n",i);
-        BIO_dump_fp(stdout,log,82);
+        //printf("log %d\n",i);
+        //BIO_dump_fp(stdout,log,82);
 
         unsigned char l[82];
         memcpy(l,log,82);
 
-        char ent;
-        unsigned char ciphertext[16];
         char z[32];
         memcpy(&ent,&log[0],1);
         memcpy(ciphertext, &log[1], 16);
@@ -318,69 +318,21 @@ void handle_verify(char* cmd){
         memcpy(hashItems,y,32);
         memcpy(&hashItems[32],ciphertext,16);
         memcpy(&hashItems[32+16],&ent,1);
+
         SHA256(hashItems,32,h);
         memcpy(y,h,32);
 
-        printf("hhh\n");
-        BIO_dump_fp(stdout,y,32);
+        //printf("hhh\n");
+        //BIO_dump_fp(stdout,y,32);
 
     }
-    printf("current_log_y\n");
-    BIO_dump_fp(stdout,current_log_y,32);
-    /*
-     unsigned char log[82];
+    //printf("current_log_y\n");
+    //BIO_dump_fp(stdout,current_log_y,32);
+    if(memcmp(current_log_y,y,32) == 0){
+        printf("same hash!\n");
+        get_log_data(index,ent, ciphertext);
 
-    char* m = "INIT";
-    char inital_hash[32];
-    SHA256(m,strlen(m),inital_hash);
-
-
-    fread(log,sizeof(unsigned char),82,curLog);
-    BIO_dump_fp(stdout, log,82);
-
-    unsigned char l[82];
-    memcpy(l,log,82);
-
-    char ent;
-    unsigned char ciphertext[16];
-    char y[32];
-    char z[32];
-    memcpy(&ent,&log[0],1);
-    memcpy(ciphertext, &log[1], 16);
-    memcpy(y,&log[1+16],33);
-    memcpy(z,&log[1+16+32+1],32);
-    printf("ent\n");
-    BIO_dump_fp(stdout,&ent,1);
-    printf("ciphertext\n");
-    ciphertext[0] = l[1];
-    BIO_dump_fp(stdout,ciphertext,16);
-    printf("y\n");
-    BIO_dump_fp(stdout,y,33);
-    printf("z\n");
-    BIO_dump_fp(stdout,z,32);
-
-
-    char hashItems[49];
-    char h[32];
-    memset(hashItems,0,49);
-    memcpy(hashItems,inital_hash,32);
-    memcpy(&hashItems[32],ciphertext,16);
-    memcpy(&hashItems[32+16],&ent,1);
-    SHA256(hashItems,32,h);
-
-    printf("h!!!!\n");
-    BIO_dump_fp(stdout,h,32);
-
-
-
-    if(memcmp(h,y,32) == 0){
-         printf("same hash!\n");
-         //get_log_data(index,ent,ciphertext);
-    } else {
-        printf("Failed Verification\n");
     }
-    */
-
 }
 
 
@@ -398,6 +350,7 @@ void handle_add_message(char* cmd){
     unsigned char ciphertext[128];
 
     int ciphertext_len = encrypt(str, strlen((char*)str), curSecret,curIV,ciphertext);
+    printf("len=%d\n",ciphertext_len);
 
 
     unsigned char newHashChainValue[32];
@@ -407,20 +360,20 @@ void handle_add_message(char* cmd){
 
     char ent[] = "1";
     //sprintf(ent, "%d",NORMAL_ENTRY);
-    printf("old hash value\n");
-    BIO_dump_fp(stdout,curHashChainValue,32);
+    //printf("old hash value\n");
+    //BIO_dump_fp(stdout,curHashChainValue,32);
 
 
     memcpy(hashString,curHashChainValue,32);
-    memcpy(&hashString[32],ciphertext,128);
-    memcpy(&hashString[32+128],ent,1);
+    memcpy(&hashString[32],ciphertext,ciphertext_len);
+    memcpy(&hashString[32+16],ent,1);
 
 
-    SHA256(hashString,32+129,newHashChainValue);
+    SHA256(hashString,32,newHashChainValue);
     memset(curHashChainValue,0,32);
     memcpy(curHashChainValue,newHashChainValue,32);
-    printf("new hash value\n");
-    BIO_dump_fp(stdout,curHashChainValue,32);
+    //printf("new hash value\n");
+    //BIO_dump_fp(stdout,curHashChainValue,32);
 
     unsigned char* digest;
     digest = HMAC(EVP_sha256(),curSecret,32,(unsigned char*)curHashChainValue,32,NULL,NULL);
