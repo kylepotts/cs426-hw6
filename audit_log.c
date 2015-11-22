@@ -151,7 +151,7 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
 
 }
 
-void get_log_data(int index, char  ent, unsigned char*ciphertext){
+void get_log_data(int index, char  ent, unsigned char*ciphertext, int ciphertext_len){
     char aes_file_name[200];
     strncpy(aes_file_name,curLogName,strlen(curLogName));
     strncat(aes_file_name, "_aes", strlen(aes_file_name)+ 4);
@@ -175,7 +175,7 @@ void get_log_data(int index, char  ent, unsigned char*ciphertext){
          SHA256(key,32,key);
     }
     char decyrpted_text [200];
-    int decyrpted_text_len = decrypt(ciphertext, 16, deckey,iv,decyrpted_text);
+    int decyrpted_text_len = decrypt(ciphertext, ciphertext_len, deckey,iv,decyrpted_text);
     decyrpted_text[decyrpted_text_len] = '\0';
     printf("text=%s\n", decyrpted_text);
 }
@@ -219,8 +219,6 @@ void create_open_entry(aes_pair* pair){
 
     char y[32];
     SHA256(hashItems,32,y);
-    //printf("Y!!!\n");
-    //BIO_dump_fp(stdout,y,32);
 
     memcpy(curHashChainValue,y,32);
 
@@ -230,22 +228,32 @@ void create_open_entry(aes_pair* pair){
     //printf("digest\n");
     //BIO_dump_fp(stdout, digest,32);
 
-    int ent_len = strlen(ent); // 1
+    int ent_len = 1; // 1
     int enc_data_len = ciphertext_len; //16
-    int hash_len = strlen(y); // 33
-    int digest_len = strlen(digest); // 32
+    int hash_len = 32; // 33
+    int digest_len = 32; // 32
+    int total_len = ent_len+enc_data_len+hash_len+digest_len;
+    printf("total_len=%d\n", total_len);
 
-    char log_entry[ent_len+enc_data_len+hash_len+digest_len];
+    char log_entry[total_len];
+    /*
     log_entry[0] = '\0';
     memcpy(log_entry,ent,1);
-    memcpy(&log_entry[1],ciphertext, ciphertext_len);
-    memcpy(&log_entry[1+ciphertext_len],y,32);
-    memcpy(&log_entry[1+ciphertext_len+strlen(y)],digest,32);
-    //printf("Entry\n");
-    //BIO_dump_fp(stdout,log_entry,82);
+    memcpy(&log_entry[1],&ciphertext_len,sizeof(int));
+    memcpy(&log_entry[1+sizeof(int)],ciphertext, ciphertext_len);
+    memcpy(&log_entry[1+sizeof(int)+ciphertext_len],y,32);
+    memcpy(&log_entry[1+sizeof(int)+ciphertext_len+32],digest,32);
+    printf("Entry\n");
+    BIO_dump_fp(stdout,log_entry,total_len);
+    */
 
     //printf("ent=%d enc_data=%d hash=%d digest_len=%d\n", ent_len,enc_data_len, hash_len,digest_len);
-    fwrite(log_entry,sizeof(unsigned char),82,curLog);
+    fwrite(&total_len,sizeof(int),1,curLog);
+    fwrite(&ciphertext_len, sizeof(int),1, curLog);
+    fwrite(ciphertext, sizeof(char),ciphertext_len,curLog);
+    fwrite(y,sizeof(char),32,curLog);
+    fwrite(digest,sizeof(char),32,curLog);
+    fwrite(ent,sizeof(char),1,curLog);;
     fflush(curLog);
     curLogIndex++;
 
@@ -289,18 +297,39 @@ void handle_verify(char* cmd){
 
     char* m = "INIT";
     char y[32];
+    char z[32];
     char current_log_y[32];
-    unsigned char ciphertext[16];
     char ent;
     SHA256(m,strlen(m),y);
+    char* ciphertext;
+    int ciphertext_len;
 
 
     for(int i=0; i<=index; i++){
-        memset(log,0,82);
-        fread(log,sizeof(char),82,curLog);
-        //printf("log %d\n",i);
-        //BIO_dump_fp(stdout,log,82);
+        int log_length;
+        fread(&log_length, sizeof(int),1,curLog);
+        printf("Log length=%d\n",log_length);
+        fread(&ciphertext_len, sizeof(int),1,curLog);
+        printf("ciphertext_len=%d\n",ciphertext_len);
 
+        ciphertext = (char*)malloc(sizeof(char)*ciphertext_len);
+        fread(ciphertext,sizeof(char),ciphertext_len,curLog);
+        fread(current_log_y,sizeof(char),32,curLog);
+        fread(z,sizeof(char),32,curLog);
+        fread(&ent,sizeof(char),1,curLog);
+
+        char hashItems[32+ciphertext_len+1];
+        char h[32];
+        memset(hashItems,0,32+ciphertext_len+1);
+        memcpy(hashItems,y,32);
+        memcpy(&hashItems[32],ciphertext,ciphertext_len);
+        memcpy(&hashItems[32+ciphertext_len],&ent,1);
+        SHA256(hashItems,32,h);
+        memcpy(y,h,32);
+
+
+
+        /*
         unsigned char l[82];
         memcpy(l,log,82);
 
@@ -324,13 +353,16 @@ void handle_verify(char* cmd){
 
         //printf("hhh\n");
         //BIO_dump_fp(stdout,y,32);
+        */
 
     }
-    //printf("current_log_y\n");
-    //BIO_dump_fp(stdout,current_log_y,32);
+    printf("current_log_y\n");
+    BIO_dump_fp(stdout,current_log_y,32);
+    printf("y!\n");
+    BIO_dump_fp(stdout,y,32);
     if(memcmp(current_log_y,y,32) == 0){
         printf("same hash!\n");
-        get_log_data(index,ent, ciphertext);
+        get_log_data(index,ent, ciphertext, ciphertext_len);
 
     }
 }
