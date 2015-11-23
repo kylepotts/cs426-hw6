@@ -509,6 +509,8 @@ void handle_verify_all(char* cmd){
         sprintf(cmd, "verify %d",i);
         handle_verify(cmd);
     }
+    fflush(out_file);
+    fclose(out_file);
 }
 
 int main(){
