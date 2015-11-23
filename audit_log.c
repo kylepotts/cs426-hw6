@@ -337,7 +337,11 @@ void handle_verify(char* cmd){
      int index = atoi(indexStr);
 
      FILE* log_file = fopen(curLogName,"r");
-
+	
+    if ( log_file == NULL ){
+	printf("Error opening log file\n");
+	return;
+    }
     rewind(log_file);
     unsigned char log[82];
 
@@ -414,6 +418,10 @@ void handle_verify(char* cmd){
 
 
 void handle_add_message(char* cmd){
+    if ( curLog == NULL ){
+	printf("Cannot add message\n");
+	return;
+    }
     char cmd_name[100];
     char str[100];
     sscanf(cmd,"%s %[^\t\n]", cmd_name, str);
