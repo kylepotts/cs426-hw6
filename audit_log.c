@@ -295,7 +295,7 @@ void create_open_entry(aes_pair* pair){
     fwrite(digest,sizeof(char),32,curLog);
     fwrite(ent,sizeof(char),1,curLog);;
     fflush(curLog);
-    curLogIndex++;
+    curLogIndex = 1;
 
 }
 
@@ -322,7 +322,7 @@ void handle_close_log(){
         create_close_entry();
         fwrite(&curLogIndex,sizeof(int),1,curLog);
         memset(curLogName,0,100);
-        curLogIndex = 0;
+        curLogIndex = 1;
         memset(curSecret,0,32);
         memset(curIV,0,32);
         memset(curHashChainValue,32,0);
@@ -339,7 +339,9 @@ void handle_verify(char* cmd){
      sscanf(cmd, "%s %s", cmd_name, indexStr);
      int index = atoi(indexStr);
 
-    rewind(curLog);
+     FILE* log_file = fopen(curLogName,"r");
+
+    rewind(log_file);
     unsigned char log[82];
 
     char* m = "INIT";
@@ -354,14 +356,14 @@ void handle_verify(char* cmd){
 
     for(int i=0; i<=index; i++){
         int log_length;
-        fread(&log_length, sizeof(int),1,curLog);
-        fread(&ciphertext_len, sizeof(int),1,curLog);
+        fread(&log_length, sizeof(int),1,log_file);
+        fread(&ciphertext_len, sizeof(int),1,log_file);
 
         ciphertext = (char*)malloc(sizeof(char)*ciphertext_len);
-        fread(ciphertext,sizeof(char),ciphertext_len,curLog);
-        fread(current_log_y,sizeof(char),32,curLog);
-        fread(z,sizeof(char),32,curLog);
-        fread(&ent,sizeof(char),1,curLog);
+        fread(ciphertext,sizeof(char),ciphertext_len,log_file);
+        fread(current_log_y,sizeof(char),32,log_file);
+        fread(z,sizeof(char),32,log_file);
+        fread(&ent,sizeof(char),1,log_file);
 
         char hashItems[32+ciphertext_len+1];
         char h[32];
@@ -402,8 +404,15 @@ void handle_verify(char* cmd){
     }
     if(memcmp(current_log_y,y,32) == 0){
         get_log_data(index,ent, ciphertext, ciphertext_len);
-
     }
+    else{
+        if(is_in_verify_all != 1){
+             printf("Failed Verification\n");
+        }else {
+            fwrite("Failed Verification\n",sizeof(char),strlen("Failed Verification\n"),out_file);
+        }
+    }
+    fclose(log_file);
 }
 
 
@@ -511,6 +520,8 @@ void handle_verify_all(char* cmd){
     }
     fflush(out_file);
     fclose(out_file);
+    out_file = NULL;
+    is_in_verify_all = -1;
 }
 
 int main(){
