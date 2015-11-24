@@ -13,7 +13,7 @@
 #define IVLENGTH 16
 
 FILE* curLog;
-char curLogName[100];
+char *curLogName;
 int curLogIndex = 0;
 char curSecret[32];
 char curIV[32];
@@ -240,7 +240,7 @@ void create_open_entry(aes_pair* pair){
    // printf("iv\n");
     //BIO_dump_fp(stdout,pair->iv,IVLENGTH);
 
-    unsigned char* message_text = (unsigned char*)"log file opened";
+    unsigned char* message_text = (unsigned char*)"Log file opened";
 
     unsigned char ciphertext[128];
 
@@ -298,6 +298,7 @@ void create_open_entry(aes_pair* pair){
 
 
 void handle_create_log(char* cmd){
+    curLogName = (char*)malloc(sizeof(char)*100);
     char cmd_name[strlen(cmd)];
     sscanf(cmd, "%s %s", cmd_name, curLogName);
     if(curLog != NULL ){
@@ -307,7 +308,6 @@ void handle_create_log(char* cmd){
         curLog = fopen(curLogName,"wb+");
         aes_pair* pair = generateAESKeyandIVForLog();
         create_open_entry(pair);
-        printf("Log with name %s sucessfully opened\n", curLogName);
     }
 
 }
@@ -325,8 +325,8 @@ void handle_close_log(){
         memset(curHashChainValue,32,0);
 
          fclose(curLog);
-         printf("Log sucessfully closed\n");
          curLog = NULL;
+         curLogName = NULL;
     }
 }
 
@@ -485,7 +485,7 @@ void handle_add_message(char* cmd){
 
 void handle_verify_all(char* cmd){
     char cmd_name[100];
-    char log_name[100];
+    curLogName = (char*)malloc(sizeof(char)*100);
     char out_name[100];
     sscanf(cmd,"%s %s %s", cmd_name,curLogName,out_name);
 
@@ -519,6 +519,8 @@ void handle_verify_all(char* cmd){
     fclose(out_file);
     out_file = NULL;
     is_in_verify_all = -1;
+    fclose(curLog);
+    curLog = NULL;
 }
 
 int main(){
