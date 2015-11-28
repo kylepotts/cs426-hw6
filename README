@@ -1,0 +1,22 @@
+Kyle Potts and Tylor Garrett
+
+
+To make binary run make and then
+./audit_log
+
+All commands are from hw paper are supported.
+
+createlog 'logname'
+add 'string'
+closelog
+veirfy 'entry number'
+verifyall 'logname' 'out file name'
+
+
+IMPORTANT FILES!
+
+The program creates a AES key for each log file. These keys are stored in 'logname'_aes files. Please not delete them or else the program will not run.
+
+
+
+

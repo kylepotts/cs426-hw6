@@ -337,7 +337,7 @@ void handle_verify(char* cmd){
      int index = atoi(indexStr);
 
      FILE* log_file = fopen(curLogName,"r");
-	
+
     if ( log_file == NULL ){
 	printf("Error opening log file\n");
 	return;
@@ -358,14 +358,34 @@ void handle_verify(char* cmd){
     for(int i=0; i<=index; i++){
         int log_length;
         fread(&log_length, sizeof(int),1,log_file);
+        if(log_length < 0 || log_length > 1000000){
+            if(is_in_verify_all != 1){
+                printf("Failed Verification\n");
+                return;
+            }else {
+                printf("Fail\n");
+                fwrite("Failed Verification\n",sizeof(char),strlen("Failed Verification\n"),out_file);
+                return;
+            }
+
+        }
         fread(&ciphertext_len, sizeof(int),1,log_file);
+        if(ciphertext_len < 0 || ciphertext_len > 10000000){
+            if(is_in_verify_all != 1){
+                printf("Failed Verification\n");
+                return;
+            }else {
+                fwrite("Failed Verification\n",sizeof(char),strlen("Failed Verification\n"),out_file);
+                return;
+            }
+
+        }
 
         ciphertext = (char*)malloc(sizeof(char)*ciphertext_len);
         fread(ciphertext,sizeof(char),ciphertext_len,log_file);
         fread(current_log_y,sizeof(char),32,log_file);
         fread(z,sizeof(char),32,log_file);
         fread(&ent,sizeof(char),1,log_file);
-
         char hashItems[32+ciphertext_len+1];
         char h[32];
         memset(hashItems,0,32+ciphertext_len+1);
@@ -502,6 +522,14 @@ void handle_verify_all(char* cmd){
         printf("Error opening log\n");
         exit(-1);
     }
+
+
+    out_file = fopen(out_name,"w+");
+    if(out_file == NULL){
+        printf("Error opening out file\n");
+        exit(-1);
+    }
+
     int fileSize = 0;
     fseek(curLog,0,SEEK_END);
     fileSize = ftell(curLog);
@@ -509,13 +537,12 @@ void handle_verify_all(char* cmd){
 
     int nEntries;
     fread(&nEntries, sizeof(int),1,curLog);
+    if(nEntries > 100000){
+        fwrite("Failed Verification\n", sizeof(char),strlen("Failed Verification\n"), out_file);
+        return;
+    }
     rewind(curLog);
 
-    out_file = fopen(out_name,"w+");
-    if(out_file == NULL){
-        printf("Error opening out file\n");
-        exit(-1);
-    }
     is_in_verify_all = 1;
 
     for(int i=0; i<nEntries; i++){
